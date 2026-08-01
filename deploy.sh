@@ -18,17 +18,27 @@ else
 fi
 
 # ---------- 2. 安装 ffmpeg（带 NVENC 的静态构建）----------
+# 优先 ffmpeg 7.1.3（兼容驱动 550+，覆盖大多数 AutoDL 实例）；
+# 失败再试最新 master（需驱动 610+）；每个源先走 ghfast 镜像再走 GitHub 直连。
 install_ffmpeg_static() {
-  local URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
-  local MIRROR="https://ghfast.top/$URL"
   local TMP="/tmp/ffmpeg-static.tar.xz"
-  echo "==> 下载 ffmpeg 静态构建（含 NVENC）…"
-  if ! curl -fL --connect-timeout 15 -o "$TMP" "$URL" 2>/dev/null; then
-    echo "    直连 GitHub 失败，改用镜像…"
-    curl -fL --connect-timeout 20 -o "$TMP" "$MIRROR"
-  fi
+  local URLS=(
+    "https://ghfast.top/https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-12-31-14-28/ffmpeg-n7.1.3-22-g40b336e650-linux64-gpl-7.1.tar.xz"
+    "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-12-31-14-28/ffmpeg-n7.1.3-22-g40b336e650-linux64-gpl-7.1.tar.xz"
+    "https://ghfast.top/https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+    "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+  )
+  echo "==> 下载 ffmpeg 静态构建（含 NVENC，优先兼容版 7.1.3）…"
+  local ok=0
+  for u in "${URLS[@]}"; do
+    if curl -fL --connect-timeout 20 -o "$TMP" "$u" 2>/dev/null; then
+      ok=1; echo "    下载成功: ${u##*/}"; break
+    fi
+    echo "    该源失败，尝试下一个…"
+  done
+  [ "$ok" -eq 1 ] || return 1
   echo "==> 解压并安装到 /usr/local/bin …"
-  mkdir -p /tmp/ffmpeg-extract
+  rm -rf /tmp/ffmpeg-extract && mkdir -p /tmp/ffmpeg-extract
   tar -xJf "$TMP" -C /tmp/ffmpeg-extract --strip-components=1
   cp -f /tmp/ffmpeg-extract/bin/ffmpeg /usr/local/bin/ffmpeg
   cp -f /tmp/ffmpeg-extract/bin/ffprobe /usr/local/bin/ffprobe
@@ -58,10 +68,9 @@ if command -v node >/dev/null 2>&1; then
   [ "$NV" -ge 18 ] && need_node=0 && echo "==> 已存在 Node $(node -v)，跳过安装"
 fi
 if [ "$need_node" -eq 1 ]; then
-  echo "==> 从 npmmirror 下载 Node.js v20 …"
-  VER=$(curl -fsSL https://npmmirror.com/mirrors/node/latest-v20.x/ | grep -oE 'v20\.[0-9]+\.[0-9]+' | head -1)
-  [ -z "$VER" ] && VER="v20.18.1"
-  curl -fL -o /tmp/node.tar.xz "https://npmmirror.com/mirrors/node/latest-v20.x/node-${VER}-linux-x64.tar.xz"
+  echo "==> 从 npmmirror 下载 Node.js v20.20.2 …"
+  curl -fL --connect-timeout 20 -o /tmp/node.tar.xz "https://npmmirror.com/mirrors/node/v20.20.2/node-v20.20.2-linux-x64.tar.xz" \
+    || curl -fL --connect-timeout 20 -o /tmp/node.tar.xz "https://registry.npmmirror.com/-/binary/node/v20.20.2/node-v20.20.2-linux-x64.tar.xz"
   tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
   rm -f /tmp/node.tar.xz
   echo "==> Node 安装完成: $(node -v)"
@@ -76,6 +85,12 @@ npm install --registry=https://registry.npmmirror.com --no-audit --no-fund
 if [ ! -f .env ]; then
   cp .env.example .env
   echo "==> 已生成 .env（R2 密钥请在网页界面填写，无需改这里）"
+fi
+
+# 放置使用说明到用户主目录（方便最终用户登录后查看）
+if [ -f "使用说明.txt" ]; then
+  cp -f "使用说明.txt" "$HOME/使用说明.txt" 2>/dev/null \
+    && echo "==> 已放置使用说明到 $HOME/使用说明.txt"
 fi
 
 # ---------- 6. 开机自启 ----------
