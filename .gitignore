@@ -1,0 +1,9 @@
+node_modules/
+uploads/
+work/
+data/
+dist/
+.env
+*.log
+.DS_Store
+test_sample.mp4

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>涛涛转码箱 - 视频转 HLS 工具</title>
+<link rel="icon" href="favicon.ico">
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --card2:#1c2330; --line:#2a3140;
+    --teal:#00b4d8; --orange:#ff8c42; --green:#3fb950; --red:#f85149;
+    --t1:#e6edf3; --t2:#9aa7b4; --t3:#6b7684;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t1);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.55;padding:20px 16px 80px}
+  .wrap{max-width:880px;margin:0 auto}
+  a{color:var(--teal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  /* 头部 */
+  header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  header img{width:56px;height:56px;border-radius:50%;flex-shrink:0}
+  header .ht h1{font-size:23px;font-weight:700}
+  header .ht p{color:var(--t2);font-size:13px;margin-top:2px}
+  .badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;margin-left:8px;vertical-align:middle}
+  .badge.gpu{background:rgba(63,185,80,.15);color:var(--green)}
+  .badge.cpu{background:rgba(255,140,66,.15);color:var(--orange)}
+  /* 说明条 */
+  .notice{background:linear-gradient(135deg,#12202e,#161b22);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .notice .nhead{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer}
+  .notice .nhead b{font-size:14px}
+  .notice .ntoggle{font-size:12px;color:var(--t3)}
+  .notice .nbody{padding:0 18px 16px;font-size:13px;color:var(--t2)}
+  .notice .nbody p{margin-bottom:8px}
+  .notice .nbody .why{color:var(--t1);font-weight:600;margin:10px 0 6px}
+  .notice .nbody ul{list-style:none;margin:0 0 10px}
+  .notice .nbody li{margin-bottom:5px;padding-left:2px}
+  .notice .nbody li b{color:var(--teal)}
+  .notice .credit{border-top:1px dashed var(--line);padding-top:10px;margin-top:6px}
+  .notice.collapsed .nbody{display:none}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;font-weight:600;margin-bottom:14px}
+  .hint{color:var(--t3);font-size:12px}
+  /* 上传区 */
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;background:var(--card2)}
+  .drop:hover,.drop.over{border-color:var(--teal);background:rgba(0,180,216,.06)}
+  .drop .big{font-size:16px;font-weight:500}
+  .drop .sub{color:var(--t2);font-size:13px;margin-top:8px}
+  /* 模式卡片 */
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mode{border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;transition:.15s;background:var(--card2)}
+  .mode:hover{border-color:var(--t3)}
+  .mode.sel{border-color:var(--teal);background:rgba(0,180,216,.08)}
+  .mode .mt{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .mode .tag{font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:4px;padding:0 5px}
+  .mode .md{color:var(--t2);font-size:12px;margin-top:6px}
+  .mode .mm{color:var(--t3);font-size:11px;margin-top:8px}
+  /* 清晰度勾选 */
+  .checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chk{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;background:var(--card2);font-size:14px;user-select:none}
+  .chk:hover{border-color:var(--t3)}
+  .chk.on{border-color:var(--teal);background:rgba(0,180,216,.1)}
+  .chk input{accent-color:var(--teal);width:15px;height:15px}
+  .chk i{font-style:normal;color:var(--t3);font-size:11px}
+  .customrow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .customrow input{width:90px;background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:7px 10px;color:var(--t1);font-size:13px}
+  .resline{color:var(--teal);font-size:13px;margin-top:12px}
+  /* 编码器 */
+  .encs{display:flex;gap:10px;flex-wrap:wrap}
+  .enc{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:9px 16px;cursor:pointer;background:var(--card2);font-size:14px}
+  .enc.sel{border-color:var(--teal);background:rgba(0,180,216,.08)}
+  .enc input{accent-color:var(--teal)}
+  .enc small{color:var(--t3);font-size:11px}
+  select{background:var(--card2);color:var(--t1);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px}
+  /* 按钮 */
+  .btn{background:var(--teal);color:#04121a;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  .btn:hover{filter:brightness(1.1)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--t1)}
+  .btn.ghost:hover{border-color:var(--t2)}
+  .btn.green{background:var(--green);color:#04140a}
+  .btn.orange{background:var(--orange);color:#1a0e04}
+  .btn.sm{padding:7px 14px;font-size:13px}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  /* 进度 */
+  .stage{font-size:14px;margin-bottom:8px}
+  .bar{height:10px;background:var(--card2);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),#48cae4);width:0;transition:width .3s}
+  .bar.up>i{background:linear-gradient(90deg,var(--orange),#ffb27a)}
+  .pct{font-size:12px;color:var(--t2);margin-top:6px;text-align:right}
+  .fileinfo{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--t2);margin-bottom:14px}
+  .fileinfo b{color:var(--t1)}
+  .result{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:14px;margin-top:14px}
+  .result .key{font-family:monospace;font-size:12px;color:var(--teal);word-break:break-all;background:var(--bg);padding:8px;border-radius:6px;margin-top:8px}
+  .err{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.4);color:var(--red);border-radius:8px;padding:12px;font-size:13px;margin-top:12px;white-space:pre-wrap}
+  /* 弹窗 */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .mask.show{display:flex}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;width:100%;max-width:460px}
+  .modal h3{font-size:17px;margin-bottom:6px}
+  .modal .desc{color:var(--t2);font-size:12px;margin-bottom:16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--t2);margin-bottom:5px}
+  .field input{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;color:var(--t1);font-size:13px}
+  .field input:focus{outline:none;border-color:var(--teal)}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2);margin:6px 0 14px}
+  .msg{font-size:12px;margin-top:8px;min-height:16px}
+  .msg.ok{color:var(--green)} .msg.bad{color:var(--red)}
+  /* 历史 */
+  .task{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .task:last-child{border-bottom:none}
+  .task .st{font-size:11px;padding:2px 8px;border-radius:12px}
+  .st.done{background:rgba(63,185,80,.15);color:var(--green)}
+  .st.working{background:rgba(0,180,216,.15);color:var(--teal)}
+  .st.failed{background:rgba(248,81,73,.15);color:var(--red)}
+  .st.r2{background:rgba(255,140,66,.15);color:var(--orange)}
+  .del{color:var(--t3);cursor:pointer;font-size:12px}
+  .del:hover{color:var(--red)}
+  .hide{display:none}
+  .copybtn{font-size:12px;color:var(--teal);cursor:pointer;margin-left:8px}
+  .sec{margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="logo.png" alt="涛涛转码箱">
+    <div class="ht">
+      <h1>涛涛转码箱<span id="encBadge" class="badge cpu">检测中…</span></h1>
+      <p>视频转 HLS 自适应流 · 可下载或存入 Cloudflare R2</p>
+    </div>
+  </header>
+
+  <!-- 项目说明 -->
+  <div class="notice" id="notice">
+    <div class="nhead" id="noticeHead">
+      <b>📺 这是一个视频转 HLS 工具</b>
+      <span class="ntoggle" id="noticeToggle">收起 ▲</span>
+    </div>
+    <div class="nbody">
+      <p>把 MP4、MKV 等视频一键转成 HLS 自适应流（m3u8 + ts 分片）。转完可打包下载到本地，也可直接存入 Cloudflare R2，即转即用。</p>
+      <div class="why">为什么要转成 HLS？</div>
+      <ul>
+        <li><b>自适应清晰度</b>：一个播放链接搞定全部。播放器按观众网速在 4K / 1080p / 720p / 480p 间无缝切换，弱网也不卡。</li>
+        <li><b>秒开不等待</b>：视频切成小分片边下边播，点开就能看，不用等整个文件加载完。</li>
+        <li><b>天生适合做视频站</b>：影视站、课程站、个人点播的主流方案；配合对象存储（R2 / OSS）和签名链接还能防盗链。</li>
+        <li><b>GPU 加速转码飞快</b>：有 NVIDIA 显卡走硬件编码，一小时视频几分钟搞定；没显卡也能用 CPU 稳稳转出。</li>
+      </ul>
+      <div class="credit">
+        本项目来自 B站 UP主「<b>涛涛碎碎念RE</b>」<br>
+        🔗 <a href="https://space.bilibili.com/3546981288905273?spm_id_from=333.1007.0.0" target="_blank" rel="noopener">https://space.bilibili.com/3546981288905273</a><br>
+        觉得好用的话，欢迎去 B站点个关注～
+      </div>
+    </div>
+  </div>
+
+  <!-- 上传区 -->
+  <div class="card" id="uploadCard">
+    <div class="drop" id="drop">
+      <div class="big">把视频拖到这里，或点击选择</div>
+      <div class="sub">支持 MP4 / MKV / MOV / AVI / FLV 等常见格式</div>
+    </div>
+    <input type="file" id="fileInput" accept="video/*" class="hide">
+    <div id="uploadProg" class="hide" style="margin-top:14px">
+      <div class="stage">正在上传到服务器…</div>
+      <div class="bar"><i id="upBar"></i></div>
+      <div class="pct" id="upPct">0%</div>
+    </div>
+  </div>
+
+  <!-- 参数区 -->
+  <div class="card hide" id="optCard">
+    <div class="fileinfo" id="fileInfo"></div>
+
+    <h2>① 转码模式</h2>
+    <div class="modes" id="modes"></div>
+
+    <h2 class="sec">② 清晰度（勾选要输出的档位，可多选做自适应）</h2>
+    <div class="checks" id="resChecks"></div>
+    <div class="customrow">
+      <span class="hint">自定义高度：</span>
+      <input type="number" id="customH" placeholder="如 900" min="120">
+      <button class="btn ghost sm" id="addCustomBtn">添加档位</button>
+    </div>
+    <div class="resline" id="resLine"></div>
+
+    <h2 class="sec">③ 编码器</h2>
+    <div class="encs" id="encs">
+      <label class="enc sel" data-enc="auto"><input type="radio" name="enc" checked> 自动 <small>有显卡用显卡</small></label>
+      <label class="enc" data-enc="gpu"><input type="radio" name="enc"> GPU 显卡 <small>NVENC 硬件加速</small></label>
+      <label class="enc" data-enc="cpu"><input type="radio" name="enc"> CPU <small>软件编码</small></label>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn" id="startBtn">开始转码</button>
+      <button class="btn ghost" id="reselectBtn">重新选择视频</button>
+    </div>
+  </div>
+
+  <!-- 进度区 -->
+  <div class="card hide" id="progCard">
+    <h2>转码进度</h2>
+    <div class="stage" id="stageText">准备中…</div>
+    <div class="bar"><i id="tcBar"></i></div>
+    <div class="pct" id="tcPct">0%</div>
+    <div class="btnrow"><button class="btn ghost" id="cancelBtn">取消转码</button></div>
+    <div class="err hide" id="errMsg"></div>
+  </div>
+
+  <!-- 结果区 -->
+  <div class="card hide" id="doneCard">
+    <h2>转码完成</h2>
+    <div class="fileinfo" id="doneInfo"></div>
+    <div class="btnrow">
+      <button class="btn green" id="dlBtn">下载到本地（ZIP）</button>
+      <button class="btn orange" id="r2Btn">上传到 R2</button>
+    </div>
+    <div id="r2Prog" class="hide" style="margin-top:16px">
+      <div class="stage">正在上传到 R2…</div>
+      <div class="bar up"><i id="r2Bar"></i></div>
+      <div class="pct" id="r2Pct">0%</div>
+    </div>
+    <div class="result hide" id="r2Result">
+      <div>已上传到 R2，播放列表路径：</div>
+      <div class="key" id="r2Key"></div>
+      <span class="copybtn" id="copyKey">复制路径</span>
+    </div>
+    <div class="err hide" id="doneErr"></div>
+  </div>
+
+  <!-- 历史 -->
+  <div class="card" id="histCard">
+    <h2>最近任务</h2>
+    <div id="histList"><div class="hint">暂无任务</div></div>
+  </div>
+</div>
+
+<!-- R2 弹窗 -->
+<div class="mask" id="r2Mask">
+  <div class="modal">
+    <h3>上传到 Cloudflare R2</h3>
+    <div class="desc">在 Cloudflare 后台 → R2 → 管理 API 令牌 中创建（需“对象读写”权限）。密钥只用于本次上传，勾选记住则保存在你本机浏览器。</div>
+    <div class="field"><label>Endpoint（端点 URL）</label><input id="f_endpoint" placeholder="https://账户ID.r2.cloudflarestorage.com"></div>
+    <div class="field"><label>Access Key ID</label><input id="f_ak" placeholder="访问密钥 ID"></div>
+    <div class="field"><label>Secret Access Key</label><input id="f_sk" type="password" placeholder="秘密访问密钥"></div>
+    <div class="field"><label>桶名（Bucket）</label><input id="f_bucket" placeholder="例如 taotao"></div>
+    <div class="field"><label>存放前缀</label><input id="f_prefix" value="hls"></div>
+    <label class="check"><input type="checkbox" id="f_remember"> 记住这些信息（存本机浏览器，下次自动填充）</label>
+    <div class="btnrow">
+      <button class="btn ghost" id="testBtn">测试连接</button>
+      <button class="btn orange" id="doUploadBtn">开始上传</button>
+      <button class="btn ghost" id="closeR2Btn">取消</button>
+    </div>
+    <div class="msg" id="r2Msg"></div>
+  </div>
+</div>
+
+<!-- 密码弹窗 -->
+<div class="mask" id="tokenMask">
+  <div class="modal" style="max-width:360px">
+    <h3>需要访问密码</h3>
+    <div class="desc">该服务设置了访问密码，请输入后继续使用。</div>
+    <div class="field"><input id="tokenInput" type="password" placeholder="访问密码"></div>
+    <div class="btnrow"><button class="btn" id="tokenBtn">进入</button></div>
+    <div class="msg bad" id="tokenMsg"></div>
+  </div>
+</div>
+
+<script>
+const LADDER=[
+  {label:'8K',height:4320},{label:'4K',height:2160},{label:'2K',height:1440},
+  {label:'1080p',height:1080},{label:'720p',height:720},{label:'480p',height:480},{label:'360p',height:360}
+];
+const MODES=[
+  {id:'copy',name:'原样切片',tag:'最快',desc:'不重新编码，直接切成 HLS。画质零损失，体积不变。',mm:'体积：原样 · 画质：无损 · 速度：极快'},
+  {id:'hevc_balanced',name:'H.265 均衡',tag:'推荐',desc:'重新编码为 H.265，体积约为原片一半，画质肉眼无损。',mm:'体积：小 · 画质：良好 · 速度：快'},
+  {id:'hevc_small',name:'H.265 极限省空间',tag:'最省',desc:'比均衡再小约 30%，正常观看看不出差别。',mm:'体积：最小 · 画质：良好 · 速度：快'},
+  {id:'h264_compat',name:'H.264 高兼容',tag:'兼容',desc:'任何老设备/老浏览器都能播，体积比 H.265 大约 40%。',mm:'体积：中 · 画质：良好 · 速度：快'},
+];
+let token=localStorage.getItem('hls_token')||'';
+let cur=null, probeData=null, es=null;
+let mode='hevc_balanced', encoder='auto';
+let selected=new Set(), customHeights=[], resInited=false;
+
+const $=id=>document.getElementById(id);
+function fmtSize(b){if(!b)return'0';const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++;}return b.toFixed(b<10&&i>0?1:0)+' '+u[i];}
+function fmtDur(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return(h?h+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
+function labelOf(h){const l=LADDER.find(x=>x.height===h);return l?l.label:(h+'p');}
+
+async function api(path,opts={}){
+  opts.headers=opts.headers||{};
+  if(token)opts.headers['x-token']=token;
+  if(opts.body&&typeof opts.body==='object'&&!(opts.body instanceof FormData)){opts.headers['content-type']='application/json';opts.body=JSON.stringify(opts.body);}
+  const r=await fetch(path,opts);
+  if(r.status===401){showToken();throw new Error('需要访问密码');}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||('请求失败 '+r.status));
+  return j;
+}
+
+async function init(){
+  try{
+    const cfg=await api('/api/config');
+    const b=$('encBadge');
+    if(cfg.nvenc){b.textContent='GPU 可用';b.className='badge gpu';}
+    else{b.textContent='仅 CPU';b.className='badge cpu';}
+  }catch(e){}
+  renderModes();
+  loadHist();
+}
+
+// 说明条折叠
+$('noticeHead').onclick=()=>{
+  const n=$('notice');n.classList.toggle('collapsed');
+  $('noticeToggle').textContent=n.classList.contains('collapsed')?'展开 ▼':'收起 ▲';
+};
+
+function renderModes(){
+  $('modes').innerHTML=MODES.map(m=>`<div class="mode ${m.id===mode?'sel':''}" data-mode="${m.id}">
+    <div class="mt">${m.name}${m.tag?`<span class="tag">${m.tag}</span>`:''}</div>
+    <div class="md">${m.desc}</div><div class="mm">${m.mm}</div></div>`).join('');
+  document.querySelectorAll('.mode').forEach(el=>el.onclick=()=>{mode=el.dataset.mode;renderModes();renderRes();});
+}
+
+function currentCap(){return mode==='h264_compat'?2160:4320;}
+
+function renderRes(){
+  if(!probeData)return;
+  const src=probeData.height, cap=currentCap();
+  // 过滤掉超出当前模式上限的已选/自定义档位
+  selected=new Set([...selected].filter(h=>h<=cap));
+  customHeights=customHeights.filter(h=>h<=src&&h<=cap);
+  const avail=LADDER.filter(l=>l.height<=src&&l.height<=cap);
+  const allOpts=[...avail.map(l=>l.height), ...customHeights.filter(h=>!avail.some(l=>l.height===h))];
+  $('resChecks').innerHTML=allOpts.map(h=>{
+    const ck=selected.has(h)?'on':'';
+    return `<label class="chk ${ck}"><input type="checkbox" value="${h}" ${selected.has(h)?'checked':''}><span>${labelOf(h)}</span><i>${h}p</i></label>`;
+  }).join('');
+  document.querySelectorAll('#resChecks .chk').forEach(el=>{
+    const inp=el.querySelector('input');
+    inp.onchange=()=>{const h=+inp.value;if(inp.checked)selected.add(h);else selected.delete(h);el.classList.toggle('on',inp.checked);updateResLine();};
+  });
+  updateResLine();
+}
+
+function updateResLine(){
+  const hs=[...selected].sort((a,b)=>b-a);
+  if(!hs.length){$('resLine').textContent='请至少勾选一个清晰度档位';return;}
+  const names=hs.map(labelOf).join(' + ');
+  $('resLine').textContent=hs.length>1?`将输出 ${hs.length} 档自适应：${names}（播放器按网速自动切换）`:`将输出单档：${names}`;
+}
+
+$('addCustomBtn').onclick=()=>{
+  const v=parseInt($('customH').value,10);
+  if(!v||v<120){alert('请输入有效的自定义高度（≥120）');return;}
+  if(!probeData){alert('请先上传视频');return;}
+  if(v>probeData.height){alert(`不能高于原视频分辨率 ${probeData.height}p（只支持向下）`);return;}
+  if(v>currentCap()){alert('当前模式下该高度不可用（H.264 最高 4K）');return;}
+  if(!customHeights.includes(v)&&!LADDER.some(l=>l.height===v))customHeights.push(v);
+  selected.add(v);$('customH').value='';renderRes();
+};
+
+// 编码器选择
+document.querySelectorAll('.enc').forEach(el=>el.onclick=()=>{
+  document.querySelectorAll('.enc').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');el.querySelector('input').checked=true;encoder=el.dataset.enc;
+});
+
+// 上传
+$('drop').onclick=()=>$('fileInput').click();
+['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over');}));
+['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('over');}));
+$('drop').addEventListener('drop',e=>{if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});
+$('fileInput').onchange=e=>{if(e.target.files.length)handleFile(e.target.files[0]);};
+
+function handleFile(file){
+  $('uploadProg').classList.remove('hide');
+  $('upBar').style.width='0%';$('upPct').textContent='0%';
+  const fd=new FormData();fd.append('video',file);
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/upload');
+  if(token)xhr.setRequestHeader('x-token',token);
+  xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=e.loaded/e.total*100;$('upBar').style.width=p+'%';$('upPct').textContent=Math.round(p)+'%';}};
+  xhr.onload=()=>{
+    $('uploadProg').classList.add('hide');
+    if(xhr.status===401){showToken();return;}
+    let j;try{j=JSON.parse(xhr.responseText);}catch(e){alert('上传失败');return;}
+    if(xhr.status>=400){alert(j.error||'上传失败');return;}
+    probeData=j;resInited=false;customHeights=[];showOptions(j);
+  };
+  xhr.onerror=()=>{$('uploadProg').classList.add('hide');alert('网络错误，上传失败');};
+  xhr.send(fd);
+}
+
+function defaultSelection(src,cap){
+  const pref=[1080,720,480].filter(h=>h<=src&&h<=cap);
+  if(pref.length)return new Set(pref);
+  return new Set([Math.min(src,cap)]);
+}
+
+function showOptions(j){
+  $('fileInfo').innerHTML=`<span>文件：<b>${j.name}</b></span><span>时长：<b>${fmtDur(j.duration)}</b></span>
+    <span>分辨率：<b>${j.width}×${j.height}</b></span><span>大小：<b>${fmtSize(j.size)}</b></span><span>编码：<b>${j.codec||'-'}</b></span>`;
+  if(!resInited){selected=defaultSelection(j.height,currentCap());resInited=true;}
+  $('optCard').classList.remove('hide');
+  $('progCard').classList.add('hide');$('doneCard').classList.add('hide');
+  renderRes();
+  $('optCard').scrollIntoView({behavior:'smooth'});
+}
+
+$('reselectBtn').onclick=()=>{$('optCard').classList.add('hide');$('fileInput').value='';};
+
+// 转码
+$('startBtn').onclick=async()=>{
+  if(!selected.size){alert('请至少勾选一个清晰度档位');return;}
+  $('startBtn').disabled=true;
+  try{
+    await api(`/api/tasks/${probeData.id}/transcode`,{method:'POST',body:{mode,encoder,renditions:[...selected]}});
+    $('optCard').classList.add('hide');
+    $('progCard').classList.remove('hide');$('doneCard').classList.add('hide');
+    $('errMsg').classList.add('hide');
+    subscribe(probeData.id);
+  }catch(e){alert(e.message);$('startBtn').disabled=false;}
+};
+
+$('cancelBtn').onclick=async()=>{if(cur)await api(`/api/tasks/${cur.id}/cancel`,{method:'POST'}).catch(()=>{});};
+
+function subscribe(id){
+  if(es)es.close();
+  es=new EventSource(`/api/tasks/${id}/events${token?('?token='+encodeURIComponent(token)):''}`);
+  es.onmessage=e=>applySnap(JSON.parse(e.data));
+  es.onerror=()=>{};
+}
+
+function applySnap(s){
+  cur=s;
+  if(s.status==='transcoding'){
+    $('progCard').classList.remove('hide');
+    $('stageText').textContent=s.renditions&&s.renditions.length>1?`转码中（${s.renditions.join(' / ')}）`:'转码中…';
+    $('tcBar').style.width=s.transcodePercent+'%';$('tcPct').textContent=s.transcodePercent+'%';
+  }else if(s.status==='done'){showDone(s);}
+  else if(s.status==='uploading_r2'){
+    $('r2Prog').classList.remove('hide');
+    $('r2Bar').style.width=s.uploadPercent+'%';$('r2Pct').textContent=s.uploadPercent+'%';
+  }else if(s.status==='r2_done'){
+    $('r2Prog').classList.add('hide');$('r2Result').classList.remove('hide');$('r2Key').textContent=s.r2.primary;
+  }else if(s.status==='failed'){
+    $('stageText').textContent='出错了';
+    $('errMsg').textContent=s.error;$('errMsg').classList.remove('hide');$('startBtn').disabled=false;loadHist();
+  }
+  if(['done','r2_done','failed'].includes(s.status))loadHist();
+}
+
+function showDone(s){
+  if(es){es.close();es=null;}
+  $('progCard').classList.add('hide');$('doneCard').classList.remove('hide');
+  $('doneInfo').innerHTML=`<span>输出清晰度：<b>${(s.renditions||[]).join(' + ')||'-'}</b></span>
+    <span>输出大小：<b>${fmtSize(s.outputSize)}</b></span><span>模式：<b>${modeName(s.mode)}</b></span>`;
+  $('r2Prog').classList.add('hide');$('r2Result').classList.add('hide');$('doneErr').classList.add('hide');
+  $('startBtn').disabled=false;
+  $('doneCard').scrollIntoView({behavior:'smooth'});loadHist();
+}
+function modeName(id){const m=MODES.find(x=>x.id===id);return m?m.name:id;}
+
+// 下载
+$('dlBtn').onclick=()=>{
+  if(!cur)return;
+  const a=document.createElement('a');
+  a.href=`/api/tasks/${cur.id}/download${token?('?token='+encodeURIComponent(token)):''}`;
+  a.download=(cur.safeName||'video')+'_HLS.zip';
+  document.body.appendChild(a);a.click();a.remove();
+};
+
+// R2
+function loadR2(){
+  const c=JSON.parse(localStorage.getItem('r2creds')||'null');
+  if(c){$('f_endpoint').value=c.endpoint||'';$('f_ak').value=c.accessKeyId||'';$('f_sk').value=c.secretAccessKey||'';$('f_bucket').value=c.bucket||'';$('f_prefix').value=c.prefix||'hls';$('f_remember').checked=true;}
+}
+function collectR2(){return{endpoint:$('f_endpoint').value.trim(),accessKeyId:$('f_ak').value.trim(),secretAccessKey:$('f_sk').value.trim(),bucket:$('f_bucket').value.trim(),prefix:$('f_prefix').value.trim()||'hls'};}
+function saveR2(){if($('f_remember').checked)localStorage.setItem('r2creds',JSON.stringify(collectR2()));else localStorage.removeItem('r2creds');}
+$('r2Btn').onclick=()=>{loadR2();$('r2Msg').textContent='';$('r2Mask').classList.add('show');};
+$('closeR2Btn').onclick=()=>$('r2Mask').classList.remove('show');
+$('testBtn').onclick=async()=>{
+  $('r2Msg').className='msg';$('r2Msg').textContent='测试中…';
+  try{await api('/api/r2/test',{method:'POST',body:collectR2()});$('r2Msg').className='msg ok';$('r2Msg').textContent='连接成功 ✓';}
+  catch(e){$('r2Msg').className='msg bad';$('r2Msg').textContent=e.message;}
+};
+$('doUploadBtn').onclick=async()=>{
+  saveR2();$('r2Msg').className='msg';$('r2Msg').textContent='开始上传…';
+  try{
+    await api(`/api/tasks/${cur.id}/upload-r2`,{method:'POST',body:collectR2()});
+    $('r2Mask').classList.remove('show');$('r2Prog').classList.remove('hide');$('r2Result').classList.add('hide');
+    subscribe(cur.id);
+  }catch(e){$('r2Msg').className='msg bad';$('r2Msg').textContent=e.message;}
+};
+$('copyKey').onclick=()=>{const t=$('r2Key').textContent;navigator.clipboard.writeText(t).then(()=>{$('copyKey').textContent='已复制';setTimeout(()=>$('copyKey').textContent='复制路径',1500);});};
+
+// 历史
+const STMAP={ready:['待转码','working'],transcoding:['转码中','working'],uploading_r2:['上传R2中','working'],done:['已完成','done'],r2_done:['已传R2','r2'],failed:['失败','failed']};
+async function loadHist(){
+  try{
+    const list=await api('/api/tasks');
+    if(!list.length){$('histList').innerHTML='<div class="hint">暂无任务</div>';return;}
+    $('histList').innerHTML=list.map(t=>{const st=STMAP[t.status]||['-','working'];
+      return`<div class="task"><span>${t.name} <span class="hint">${fmtSize(t.size)}</span></span>
+      <span><span class="st ${st[1]}">${st[0]}</span> <span class="del" data-id="${t.id}">删除</span></span></div>`;}).join('');
+    document.querySelectorAll('.del').forEach(el=>el.onclick=async()=>{await api(`/api/tasks/${el.dataset.id}`,{method:'DELETE'}).catch(()=>{});loadHist();});
+  }catch(e){}
+}
+
+// 密码
+function showToken(){$('tokenMask').classList.add('show');}
+$('tokenBtn').onclick=()=>{
+  const v=$('tokenInput').value.trim();if(!v)return;
+  token=v;localStorage.setItem('hls_token',v);
+  $('tokenMask').classList.remove('hide');$('tokenMask').classList.remove('show');$('tokenMsg').textContent='';init();
+};
+
+init();
+</script>
+</body>
+</html>
