@@ -1,0 +1,14 @@
+node_modules
+dist
+work
+uploads
+data
+assets
+build
+.git
+.env
+*.log
+.DS_Store
+test_sample.mp4
+Dockerfile
+.dockerignore

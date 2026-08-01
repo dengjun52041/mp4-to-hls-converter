@@ -40,6 +40,21 @@
 
 > 提示：AutoDL 机房在大陆，上传到 Cloudflare R2 属跨境流量，速度约 1–5 MB/s。转码本身很快（GPU 下 1 小时视频约 1–3 分钟），主要耗时在上传。工具已用并发上传尽量拉满带宽。
 
+## Docker / AutoDL 社区镜像
+
+仓库自带 `Dockerfile`（基于 NVIDIA CUDA 镜像，已装好 Node + 含 NVENC 的 ffmpeg + 本工具）。
+
+**AutoDL 社区镜像**：在 AutoDL“镜像 → 创建社区镜像”页面，GitHub 仓库地址填 `dengjun52041/mp4-to-hls-converter`，平台会自动用仓库里的 Dockerfile 构建。构建成功后，其他 AutoDL 用户租实例时即可选用该镜像。
+
+**本地 Docker 构建运行**（需 NVIDIA GPU + nvidia-docker）：
+
+```bash
+docker build -t taotao-transcoder .
+docker run --gpus all -p 3000:3000 taotao-transcoder
+```
+
+容器内应用位于 `/app`，服务端口 `3000`。也可进入容器手动执行 `bash /app/start.sh`。
+
 ## 本地运行（Windows / 测试用）
 
 需要先安装 [Node.js](https://nodejs.org/)（≥18）和 [ffmpeg](https://ffmpeg.org/)（加入 PATH）。
